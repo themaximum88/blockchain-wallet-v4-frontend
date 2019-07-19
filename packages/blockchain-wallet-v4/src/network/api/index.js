@@ -9,23 +9,20 @@ import lockbox from './lockbox'
 import misc from './misc'
 import profile from './profile'
 import rates from './rates'
-import settings from './settings'
 import shapeShift from './shapeShift'
 import sfox from './sfox'
 import trades from './trades'
 import wallet from './wallet'
 import xlm from './xlm'
-import httpService from './http'
 import apiAuthorize from './apiAuthorize'
 
 export default ({
+  http,
   options,
-  apiKey,
   getAuthCredentials,
   reauthenticate,
   networks
 } = {}) => {
-  const http = httpService({ apiKey })
   const authorizedHttp = apiAuthorize(http, getAuthCredentials, reauthenticate)
   const apiUrl = options.domains.api
   const horizonUrl = options.domains.horizon
@@ -58,7 +55,6 @@ export default ({
       ...http
     }),
     ...sfox(),
-    ...settings({ rootUrl, ...http }),
     ...shapeShift({ shapeShiftApiKey, ...http }),
     ...rates({ nabuUrl, ...authorizedHttp }),
     ...trades({ nabuUrl, ...authorizedHttp }),

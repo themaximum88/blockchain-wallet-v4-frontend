@@ -30,7 +30,7 @@ import { generateMnemonic } from '../../walletCrypto'
 const taskToPromise = t =>
   new Promise((resolve, reject) => t.fork(reject, resolve))
 
-export default ({ api, networks }) => {
+export default ({ api, networks, securityModule }) => {
   const runTask = function * (task, setActionCreator) {
     let result = yield call(
       compose(
@@ -47,21 +47,27 @@ export default ({ api, networks }) => {
     if (isEncrypted) {
       const task = Wrapper.traverseWallet(
         Task.of,
-        Wallet.decrypt(password),
+        Wallet.decrypt(securityModule, password),
         wrapper
       )
       yield call(runTask, task, A.wallet.setWrapper)
     } else {
       const task = Wrapper.traverseWallet(
         Task.of,
-        Wallet.encrypt(password),
+        Wallet.encrypt(securityModule, password),
         wrapper
       )
       yield call(runTask, task, A.wallet.setWrapper)
     }
   }
 
-  const importLegacyAddress = function * ({ key, network, password, bipPass }) {
+  const importLegacyAddress = function * ({
+    key,
+    network,
+    password,
+    bipPass,
+    securityModule
+  }) {
     const wallet = yield select(S.getWallet)
     const wrapper = yield select(S.getWrapper)
     const walletT = Wallet.importLegacyAddress(
@@ -70,7 +76,7 @@ export default ({ api, networks }) => {
       Date.now(),
       password,
       bipPass,
-      { network, api }
+      { network, api, securityModule }
     )
     const wrapperT = walletT.map(wallet => set(Wrapper.wallet, wallet, wrapper))
     yield call(runTask, wrapperT, A.wallet.setWrapper)
@@ -80,7 +86,7 @@ export default ({ api, networks }) => {
     let wrapper = yield select(S.getWrapper)
     let nextWrapper = Wrapper.traverseWallet(
       Task.of,
-      Wallet.newHDAccount(label, password, networks.btc),
+      Wallet.newHDAccount(securityModule, label, password, networks.btc),
       wrapper
     )
     yield call(runTask, nextWrapper, A.wallet.setWrapper)
@@ -208,9 +214,19 @@ export default ({ api, networks }) => {
       const isEncrypted = yield select(S.isSecondPasswordOn)
       if (isEncrypted) {
         const task = Task.of(wrapper)
-          .chain(Wrapper.traverseWallet(Task.of, Wallet.decrypt(password)))
+          .chain(
+            Wrapper.traverseWallet(
+              Task.of,
+              Wallet.decrypt(securityModule, password)
+            )
+          )
           .map(Wrapper.setBothPbkdf2Iterations(iterations))
-          .chain(Wrapper.traverseWallet(Task.of, Wallet.encrypt(password)))
+          .chain(
+            Wrapper.traverseWallet(
+              Task.of,
+              Wallet.encrypt(securityModule, password)
+            )
+          )
         yield call(runTask, task, A.wallet.setWrapper)
       } else {
         const newWrapper = Wrapper.setBothPbkdf2Iterations(iterations, wrapper)

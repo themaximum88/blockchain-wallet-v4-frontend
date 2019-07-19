@@ -46,7 +46,7 @@ const fallbackFees = { priority: 4, regular: 4 }
       .chain().fee(myFee).amount(myAmount).done()
 */
 
-export default ({ api }) => {
+export default ({ api, securityModule }) => {
   // ///////////////////////////////////////////////////////////////////////////
   const settingsSagas = settingsSagaFactory({ api })
   const pushBchTx = futurizeP(Task)(api.pushBchTx)
@@ -231,6 +231,7 @@ export default ({ api }) => {
 
   // ///////////////////////////////////////////////////////////////////////////
   const calculateSignature = function * (
+    securityModule,
     network,
     password,
     transport,
@@ -249,7 +250,14 @@ export default ({ api }) => {
       case ADDRESS_TYPES.ACCOUNT:
         return yield call(() =>
           taskToPromise(
-            bch.signHDWallet(network, password, wrapper, selection, coinDust)
+            bch.signHDWallet(
+              securityModule,
+              network,
+              password,
+              wrapper,
+              selection,
+              coinDust
+            )
           )
         )
       case ADDRESS_TYPES.LEGACY:
@@ -357,6 +365,7 @@ export default ({ api }) => {
         const { coinDust, lockSecret } = yield call(this.getCoinDust)
         let signed = yield call(
           calculateSignature,
+          securityModule,
           network,
           password,
           transport,

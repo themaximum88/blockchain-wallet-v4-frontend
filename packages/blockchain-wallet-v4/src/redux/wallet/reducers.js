@@ -11,6 +11,10 @@ export const WRAPPER_INITIAL_STATE = Wrapper.fromJS(
 export const wrapperReducer = (state = WRAPPER_INITIAL_STATE, action) => {
   const { type } = action
   switch (type) {
+    // Merge wrapper from the Main Process.
+    case T.MERGE_WRAPPER: {
+      return state.mergeDeep(action.payload)
+    }
     case T.SET_PAYLOAD_CHECKSUM: {
       const checksum = action.payload
       return set(Wrapper.payloadChecksum, checksum, state)

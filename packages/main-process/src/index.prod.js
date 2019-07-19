@@ -7,15 +7,10 @@ import configureLocales from 'services/LocalesService'
 import App from 'scenes/app.js'
 import Error from './index.error'
 
-const renderApp = (Component, store, history, persistor) => {
+const renderApp = (Component, store, history) => {
   const { messages } = configureLocales(store)
   ReactDOM.render(
-    <Component
-      store={store}
-      history={history}
-      messages={messages}
-      persistor={persistor}
-    />,
+    <Component store={store} history={history} messages={messages} />,
     document.getElementById('app')
   )
 }
@@ -26,7 +21,7 @@ const renderError = () => {
 
 configureStore()
   .then(root => {
-    renderApp(App, root.store, root.history, root.persistor)
+    renderApp(App, root.store, root.history)
   })
   .catch(e => {
     // eslint-disable-next-line no-console

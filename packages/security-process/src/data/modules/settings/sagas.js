@@ -19,7 +19,7 @@ export const ipRestrictionError =
 
 export const logLocation = 'modules/settings/sagas'
 
-export default ({ api, coreSagas }) => {
+export default ({ api, coreSagas, securityModule }) => {
   const { syncUserWithWallet } = profileSagas({
     api,
     coreSagas
@@ -46,7 +46,8 @@ export default ({ api, coreSagas }) => {
   }
 
   const recoverySaga = function * ({ password }) {
-    const getMnemonic = s => selectors.core.wallet.getMnemonic(s, password)
+    const getMnemonic = s =>
+      selectors.core.wallet.getMnemonic(securityModule, s, password)
     try {
       const mnemonicT = yield select(getMnemonic)
       const mnemonic = yield call(() => taskToPromise(mnemonicT))

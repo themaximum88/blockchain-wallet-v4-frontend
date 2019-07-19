@@ -7,9 +7,22 @@ import { Wrapper, MenuItem, SubMenu, SubMenuItem } from 'components/MenuLeft'
 const Footer = props => {
   const { settingsOpened } = props.data
 
+  const onSecurityCenterClick = event => {
+    props.dispatch({
+      type: `ROOT_LOCATION_CHANGE`,
+      payload: { action: `PUSH`, location: { pathname: `/security-center` } }
+    })
+
+    event.preventDefault()
+  }
+
   return (
     <Wrapper>
-      <LinkContainer to='/security-center' activeClassName='active'>
+      <LinkContainer
+        to='/security-center'
+        activeClassName='active'
+        onClick={onSecurityCenterClick}
+      >
         <MenuItem data-e2e='securityCenterLink'>
           <Icon name='shield' size='21px' />
           <FormattedMessage

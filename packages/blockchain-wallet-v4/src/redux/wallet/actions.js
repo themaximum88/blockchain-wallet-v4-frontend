@@ -1,6 +1,9 @@
 import * as T from './actionTypes'
 
 // setters
+
+export const mergeWrapper = payload => ({ type: T.MERGE_WRAPPER, payload })
+
 export const setWrapper = payload => ({
   type: T.SET_WRAPPER,
   payload: payload

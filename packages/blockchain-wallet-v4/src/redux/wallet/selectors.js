@@ -91,15 +91,15 @@ export const getHDAccounts = compose(
   Wallet.selectHDAccounts,
   getWallet
 )
-export const getSeedHex = curry((state, password) =>
+export const getSeedHex = curry((securityModule, state, password) =>
   compose(
-    Wallet.getSeedHex(password),
+    Wallet.getSeedHex(securityModule, password),
     getWallet
   )(state)
 )
-export const getMnemonic = curry((state, password) =>
+export const getMnemonic = curry((securityModule, state, password) =>
   compose(
-    Wallet.getMnemonic(password),
+    Wallet.getMnemonic(securityModule, password),
     getWallet
   )(state)
 )

@@ -1,7 +1,5 @@
 import * as Exchange from '../exchange'
 import { prop, path } from 'ramda'
-import BIP39 from 'bip39'
-import Bitcoin from 'bitcoinjs-lib'
 import EthHd from 'ethereumjs-wallet/hdkey'
 import EthUtil from 'ethereumjs-util'
 import BigNumber from 'bignumber.js'
@@ -12,19 +10,15 @@ import BigNumber from 'bignumber.js'
 export const isValidAddress = address => /^0x[a-fA-F0-9]{40}$/.test(address)
 
 /**
- * @param {string} mnemonic
+ * @param {function} deriveBIP32Key
  * @param {integer} index
  */
-export const getPrivateKey = (mnemonic, index) => {
-  const seed = BIP39.mnemonicToSeed(mnemonic)
-  const account = Bitcoin.HDNode.fromSeedBuffer(seed)
-    .deriveHardened(44)
-    .deriveHardened(60)
-    .deriveHardened(0)
-    .derive(0)
-    .derive(index)
-    .toBase58()
-  return EthHd.fromExtendedKey(account)
+export const getPrivateKey = async ({ deriveBIP32Key, index }) => {
+  const key = await deriveBIP32Key({
+    path: `m/44'/60'/0'/0/${index}`
+  })
+
+  return EthHd.fromExtendedKey(key)
     .getWallet()
     .getPrivateKey()
 }
@@ -46,8 +40,8 @@ const deriveChildLegacy = (index, seed) => {
 export const privateKeyToAddress = pk =>
   EthUtil.toChecksumAddress(EthUtil.privateToAddress(pk).toString('hex'))
 
-export const deriveAddress = (mnemonic, index) =>
-  privateKeyToAddress(getPrivateKey(mnemonic, index))
+export const deriveAddress = async (...args) =>
+  privateKeyToAddress(await getPrivateKey(...args))
 
 export const deriveAddressFromXpub = xpub => {
   const ethPublic = EthHd.fromExtendedKey(xpub)

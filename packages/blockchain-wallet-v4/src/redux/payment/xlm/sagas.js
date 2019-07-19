@@ -66,6 +66,7 @@ export default ({ api }) => {
   }
 
   const calculateSignature = function * (
+    securityModule,
     password,
     transaction,
     transport,
@@ -75,7 +76,9 @@ export default ({ api }) => {
     switch (fromType) {
       case ADDRESS_TYPES.ACCOUNT:
         if (!transaction) throw new Error(NO_TX_ERROR)
-        const mnemonicT = yield select(flip(S.wallet.getMnemonic)(password))
+        const mnemonicT = yield select(
+          flip(S.wallet.getMnemonic)(securityModule, password)
+        )
         const mnemonic = yield call(() => taskToPromise(mnemonicT))
         return xlmSigner.sign({ transaction }, mnemonic)
       case ADDRESS_TYPES.LOCKBOX:

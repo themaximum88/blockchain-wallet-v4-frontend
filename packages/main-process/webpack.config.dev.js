@@ -7,7 +7,12 @@ const UglifyJSPlugin = require('uglifyjs-webpack-plugin')
 const Webpack = require('webpack')
 const path = require('path')
 const fs = require('fs')
-const PATHS = require('../../config/paths')
+
+const PATHS = {
+  ...require('../../config/paths'),
+  src: path.resolve(__dirname, `src`)
+}
+
 const mockWalletOptions = require('../../config/mocks/wallet-options-v4.json')
 const iSignThisDomain =
   mockWalletOptions.platforms.web.coinify.config.iSignThisDomain
@@ -20,9 +25,12 @@ let sslEnabled = process.env.DISABLE_SSL
   ? false
   : fs.existsSync(PATHS.sslConfig + '/key.pem') &&
     fs.existsSync(PATHS.sslConfig + '/cert.pem')
+
+const port = 8083
+
 let localhostUrl = sslEnabled
-  ? 'https://localhost:8080'
-  : 'http://localhost:8080'
+  ? `https://localhost:${port}`
+  : `http://localhost:${port}`
 
 try {
   envConfig = require(PATHS.envConfig + `/${process.env.NODE_ENV}` + '.js')
@@ -60,7 +68,7 @@ module.exports = {
     app: [
       '@babel/polyfill',
       'react-hot-loader/patch',
-      'webpack-dev-server/client?http://localhost:8080',
+      `webpack-dev-server/client?${localhostUrl}`,
       'webpack/hot/only-dev-server',
       PATHS.src + '/index.js'
     ]
@@ -165,8 +173,7 @@ module.exports = {
             // ensure other packages in mono repo don't get put into vendor bundle
             return (
               module.resource &&
-              module.resource.indexOf('blockchain-wallet-v4-frontend/src') ===
-                -1 &&
+              module.resource.indexOf('main-process/src') === -1 &&
               module.resource.indexOf(
                 'node_modules/blockchain-info-components/src'
               ) === -1 &&
@@ -190,7 +197,7 @@ module.exports = {
     key: sslEnabled
       ? fs.readFileSync(PATHS.sslConfig + '/key.pem', 'utf8')
       : '',
-    port: 8080,
+    port,
     hot: true,
     historyApiFallback: true,
     before(app) {
@@ -250,22 +257,22 @@ module.exports = {
     headers: {
       'Access-Control-Allow-Origin': '*',
       'Content-Security-Policy': [
-        "img-src 'self' data: blob:",
-        "script-src 'self' 'unsafe-eval'",
-        "style-src 'self' 'unsafe-inline'",
+        `img-src ${localhostUrl} data: blob:`,
+        `script-src ${localhostUrl} 'unsafe-eval'`,
+        `style-src ${localhostUrl} 'unsafe-inline'`,
         `frame-src ${iSignThisDomain} ${coinifyPaymentDomain} ${
           envConfig.WALLET_HELPER_DOMAIN
-        } ${envConfig.ROOT_URL} https://magic.veriff.me https://localhost:8080`,
+        } ${envConfig.ROOT_URL} https://magic.veriff.me ${localhostUrl}`,
         `child-src ${iSignThisDomain} ${coinifyPaymentDomain}  ${
           envConfig.WALLET_HELPER_DOMAIN
         } blob:`,
         [
-          'connect-src',
-          "'self'",
-          'ws://localhost:8080',
-          'wss://localhost:8080',
-          'wss://api.ledgerwallet.com',
-          'wss://ws.testnet.blockchain.info/inv',
+          `connect-src`,
+          localhostUrl,
+          `ws://localhost:${port}`,
+          `wss://localhost:${port}`,
+          `wss://api.ledgerwallet.com`,
+          `wss://ws.testnet.blockchain.info/inv`,
           envConfig.WEB_SOCKET_URL,
           envConfig.ROOT_URL,
           envConfig.API_DOMAIN,
@@ -274,22 +281,22 @@ module.exports = {
           envConfig.LEDGER_SOCKET_URL,
           envConfig.HORIZON_URL,
           envConfig.VERIFF_URL,
-          'https://friendbot.stellar.org',
-          'https://app-api.coinify.com',
-          'https://app-api.sandbox.coinify.com',
-          'https://api.sfox.com',
-          'https://api.staging.sfox.com',
-          'https://quotes.sfox.com',
+          `https://friendbot.stellar.org`,
+          `https://app-api.coinify.com`,
+          `https://app-api.sandbox.coinify.com`,
+          `https://api.sfox.com`,
+          `https://api.staging.sfox.com`,
+          `https://quotes.sfox.com`,
           `https://quotes.staging.sfox.com`,
-          'https://sfox-kyc.s3.amazonaws.com',
-          'https://sfox-kyctest.s3.amazonaws.com',
-          'https://testnet5.blockchain.info',
-          'https://api.testnet.blockchain.info',
-          'https://shapeshift.io'
-        ].join(' '),
-        "object-src 'none'",
-        "media-src 'self' https://storage.googleapis.com/bc_public_assets/ data: mediastream: blob:",
-        "font-src 'self'"
+          `https://sfox-kyc.s3.amazonaws.com`,
+          `https://sfox-kyctest.s3.amazonaws.com`,
+          `https://testnet5.blockchain.info`,
+          `https://api.testnet.blockchain.info`,
+          `https://shapeshift.io`
+        ].join(` `),
+        `object-src 'none'`,
+        `media-src ${localhostUrl} https://storage.googleapis.com/bc_public_assets/ data: mediastream: blob:`,
+        `font-src ${localhostUrl}`
       ].join('; ')
     }
   }

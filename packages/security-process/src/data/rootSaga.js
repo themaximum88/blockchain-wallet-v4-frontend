@@ -5,10 +5,8 @@ import alerts from './alerts/sagaRegister'
 import analytics from './analytics/sagaRegister'
 import auth from './auth/sagaRegister'
 import components from './components/sagaRegister'
-import middleware from './middleware/sagaRegister'
 import modules from './modules/sagaRegister'
 import preferences from './preferences/sagaRegister'
-import goals from './goals/sagaRegister'
 import router from './router/sagaRegister'
 import wallet from './wallet/sagaRegister'
 import { tryParseLanguageFromUrl } from 'services/LanguageService'
@@ -37,10 +35,10 @@ const welcomeSaga = function * () {
   }
 }
 
-const languageInitSaga = function * () {
+const languageInitSaga = function * ({ imports }) {
   try {
     yield delay(250)
-    const lang = tryParseLanguageFromUrl()
+    const lang = tryParseLanguageFromUrl(imports)
     if (lang.language) {
       yield put(actions.preferences.setLanguage(lang.language, false))
       if (lang.cultureCode) {
@@ -54,28 +52,24 @@ const languageInitSaga = function * () {
 
 export default function * rootSaga ({
   api,
-  bchSocket,
-  btcSocket,
-  ethSocket,
-  ratesSocket,
+  imports,
   networks,
-  options
+  options,
+  securityModule
 }) {
-  const coreSagas = coreSagasFactory({ api, networks, options })
+  const coreSagas = coreSagasFactory({ api, networks, options, securityModule })
 
   yield all([
     call(welcomeSaga),
     fork(alerts),
     fork(analytics({ api })),
-    fork(auth({ api, coreSagas })),
+    fork(auth({ api, coreSagas, imports })),
     fork(components({ api, coreSagas, networks, options })),
-    fork(modules({ api, coreSagas, networks })),
+    fork(modules({ api, coreSagas, networks, securityModule })),
     fork(preferences()),
-    fork(goals({ api })),
     fork(wallet({ coreSagas })),
-    fork(middleware({ api, bchSocket, btcSocket, ethSocket, ratesSocket })),
     fork(coreRootSagaFactory({ api, networks, options })),
     fork(router()),
-    call(languageInitSaga)
+    call(languageInitSaga, { imports })
   ])
 }

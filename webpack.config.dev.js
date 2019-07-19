@@ -7,12 +7,17 @@ const UglifyJSPlugin = require('uglifyjs-webpack-plugin')
 const Webpack = require('webpack')
 const path = require('path')
 const fs = require('fs')
-const PATHS = require('../../config/paths')
-const mockWalletOptions = require('../../config/mocks/wallet-options-v4.json')
+
+const PATHS = require('./config/paths')
+
+const mockWalletOptions = require('./config/mocks/wallet-options-v4.json')
 const iSignThisDomain =
   mockWalletOptions.platforms.web.coinify.config.iSignThisDomain
 const coinifyPaymentDomain =
   mockWalletOptions.platforms.web.coinify.config.coinifyPaymentDomain
+
+const mainProcessBabelConfig = require(`./packages/main-process/babel.config`)
+const securityProcessBabelConfig = require(`./packages/security-process/babel.config`)
 
 let envConfig = {}
 let manifestCacheBust = new Date().getTime()
@@ -57,12 +62,20 @@ module.exports = {
     fs: 'empty'
   },
   entry: {
-    app: [
+    index: `./packages/root-process/src/index.js`,
+    main: [
       '@babel/polyfill',
       'react-hot-loader/patch',
       'webpack-dev-server/client?http://localhost:8080',
       'webpack/hot/only-dev-server',
-      PATHS.src + '/index.js'
+      './packages/main-process/src/index.js'
+    ],
+    security: [
+      '@babel/polyfill',
+      'react-hot-loader/patch',
+      'webpack-dev-server/client?http://localhost:8080',
+      'webpack/hot/only-dev-server',
+      './packages/security-process/src/index.js'
     ]
   },
   output: {
@@ -75,10 +88,27 @@ module.exports = {
     rules: [
       {
         test: /\.js$/,
-        include: /src|blockchain-info-components.src|blockchain-wallet-v4.src/,
+        include: /blockchain-info-components.src|blockchain-wallet-v4.src|main-process.src/,
         use: [
           { loader: 'thread-loader', options: { workerParallelJobs: 50 } },
-          'babel-loader'
+          {
+            loader: 'babel-loader',
+            options: mainProcessBabelConfig(null, `./packages/main-process`)
+          }
+        ]
+      },
+      {
+        test: /\.js$/,
+        include: /blockchain-info-components.src|blockchain-wallet-v4.src|security-process.src/,
+        use: [
+          { loader: 'thread-loader', options: { workerParallelJobs: 50 } },
+          {
+            loader: 'babel-loader',
+            options: securityProcessBabelConfig(
+              null,
+              `./packages/security-process`
+            )
+          }
         ]
       },
       {
@@ -122,8 +152,19 @@ module.exports = {
       NETWORK_TYPE: JSON.stringify(envConfig.NETWORK_TYPE)
     }),
     new HtmlWebpackPlugin({
-      template: PATHS.src + '/index.html',
+      entryPoint: `index`,
+      template: './packages/root-process/src/index.html',
       filename: 'index.html'
+    }),
+    new HtmlWebpackPlugin({
+      entryPoint: `main`,
+      template: './packages/main-process/src/index.html',
+      filename: 'main.html'
+    }),
+    new HtmlWebpackPlugin({
+      entryPoint: `security`,
+      template: './packages/security-process/src/index.html',
+      filename: 'security.html'
     }),
     new Webpack.HotModuleReplacementPlugin()
   ],
@@ -250,18 +291,18 @@ module.exports = {
     headers: {
       'Access-Control-Allow-Origin': '*',
       'Content-Security-Policy': [
-        "img-src 'self' data: blob:",
-        "script-src 'self' 'unsafe-eval'",
-        "style-src 'self' 'unsafe-inline'",
+        `img-src ${localhostUrl} data: blob:`,
+        `script-src ${localhostUrl} 'unsafe-eval'`,
+        `style-src ${localhostUrl} 'unsafe-inline'`,
         `frame-src ${iSignThisDomain} ${coinifyPaymentDomain} ${
           envConfig.WALLET_HELPER_DOMAIN
-        } ${envConfig.ROOT_URL} https://magic.veriff.me https://localhost:8080`,
+        } ${envConfig.ROOT_URL} https://magic.veriff.me ${localhostUrl}`,
         `child-src ${iSignThisDomain} ${coinifyPaymentDomain}  ${
           envConfig.WALLET_HELPER_DOMAIN
         } blob:`,
         [
           'connect-src',
-          "'self'",
+          localhostUrl,
           'ws://localhost:8080',
           'wss://localhost:8080',
           'wss://api.ledgerwallet.com',
@@ -288,8 +329,8 @@ module.exports = {
           'https://shapeshift.io'
         ].join(' '),
         "object-src 'none'",
-        "media-src 'self' https://storage.googleapis.com/bc_public_assets/ data: mediastream: blob:",
-        "font-src 'self'"
+        `media-src ${localhostUrl} https://storage.googleapis.com/bc_public_assets/ data: mediastream: blob:`,
+        `font-src ${localhostUrl}`
       ].join('; ')
     }
   }

@@ -10,8 +10,6 @@ describe('Wallet', () => {
   const wallet = Wallet.fromJS(walletFixture)
   const walletSecpass = Wallet.fromJS(walletFixtureSecpass)
 
-  crypto.encryptDataWithKey = (data, key, iv) => (data ? `enc<${data}>` : null)
-
   describe('toJS', () => {
     it('should return the correct object', () => {
       let result = Wallet.toJS(wallet)
@@ -117,32 +115,70 @@ describe('Wallet', () => {
   })
 
   describe('isValidSecondPwd', () => {
-    it('should be valid for an unencrypted wallet', () => {
-      let isValid = Wallet.isValidSecondPwd(null, wallet)
+    it('should be valid for an unencrypted wallet', async () => {
+      const mockSecurityModule = {
+        computeSecondPasswordHash: async () => walletSecpass.dpasswordhash
+      }
+
+      let isValid = await Wallet.isValidSecondPwd(
+        mockSecurityModule,
+        null,
+        wallet
+      )
+
       expect(isValid).toEqual(true)
     })
 
-    it('should detect a valid second password', () => {
-      let isValid = Wallet.isValidSecondPwd(secpass, walletSecpass)
+    it('should detect a valid second password', async () => {
+      const securityModule = {
+        computeSecondPasswordHash: async () => walletSecpass.dpasswordhash
+      }
+
+      let isValid = await Wallet.isValidSecondPwd(
+        securityModule,
+        secpass,
+        walletSecpass
+      )
+
       expect(isValid).toEqual(true)
     })
 
-    it('should detect an invalid second password', () => {
+    it('should detect an invalid second password', async () => {
+      const securityModule = {
+        computeSecondPasswordHash: async () => `wrong hash`
+      }
+
       let secpass = 'wrong_secpass'
-      let isValid = Wallet.isValidSecondPwd(secpass, walletSecpass)
+
+      let isValid = await Wallet.isValidSecondPwd(
+        securityModule,
+        secpass,
+        walletSecpass
+      )
+
       expect(isValid).toEqual(false)
     })
   })
 
   describe('encrypt', () => {
     it('should encrypt', done => {
-      Wallet.encrypt('secret', wallet).fork(done, encrypted => {
-        let [before, after] = [wallet, encrypted].map(Wallet.selectAddresses)
-        let enc = crypto.encryptDataWithKey
-        let success = R.zip(before, after).every(
-          ([b, a]) => enc(b.priv) === a.priv
-        )
-        expect(success).toEqual(true)
+      const securityModule = {
+        computeSecondPasswordHash: async ({ iterations, password }) =>
+          `hash of ${JSON.stringify({ iterations, password })}`,
+
+        encryptWithSecondPassword: async (
+          { iterations, password },
+          plaintext
+        ) =>
+          `encrypted with ${JSON.stringify({
+            iterations,
+            password,
+            plaintext
+          })}`
+      }
+
+      Wallet.encrypt(securityModule, 'secret', wallet).fork(done, encrypted => {
+        expect(encrypted).toMatchSnapshot()
         done()
       })
     })
@@ -150,14 +186,41 @@ describe('Wallet', () => {
 
   describe('decrypt', () => {
     it('should decrypt', done => {
-      Wallet.decrypt('secret', walletSecpass).fork(done, decrypted => {
-        expect(Wallet.toJS(decrypted)).toEqual(walletFixture)
-        done()
-      })
+      const securityModule = {
+        computeSecondPasswordHash: async () => walletSecpass.dpasswordhash,
+
+        decryptWithSecondPassword: async (
+          { iterations, password },
+          ciphertext
+        ) =>
+          `decrypted from ${JSON.stringify([
+            { ciphertext, iterations, password }
+          ])}`
+      }
+
+      Wallet.decrypt(securityModule, 'secret', walletSecpass).fork(
+        done,
+        decrypted => {
+          expect(decrypted).toMatchSnapshot()
+          done()
+        }
+      )
     })
 
     it('should fail when given an incorrect password', done => {
-      Wallet.decrypt('wrong', walletSecpass).fork(error => {
+      const securityModule = {
+        computeSecondPasswordHash: async () => `wrong hash`,
+
+        decryptWithSecondPassword: async (
+          { iterations, password },
+          ciphertext
+        ) =>
+          `decrypted from ${JSON.stringify([
+            { ciphertext, iterations, password }
+          ])}`
+      }
+
+      Wallet.decrypt(securityModule, 'wrong', walletSecpass).fork(error => {
         expect(R.is(Error, error)).toEqual(true)
         expect(error.message).toEqual('INVALID_SECOND_PASSWORD')
         done()

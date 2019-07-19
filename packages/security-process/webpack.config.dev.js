@@ -4,10 +4,16 @@ const CleanWebpackPlugin = require('clean-webpack-plugin')
 const CaseSensitivePathsPlugin = require('case-sensitive-paths-webpack-plugin')
 const HtmlWebpackPlugin = require('html-webpack-plugin')
 const UglifyJSPlugin = require('uglifyjs-webpack-plugin')
+const { UnusedFilesWebpackPlugin } = require('unused-files-webpack-plugin')
 const Webpack = require('webpack')
 const path = require('path')
 const fs = require('fs')
-const PATHS = require('../../config/paths')
+
+const PATHS = {
+  ...require('../../config/paths'),
+  src: path.resolve(__dirname, `src`)
+}
+
 const mockWalletOptions = require('../../config/mocks/wallet-options-v4.json')
 const iSignThisDomain =
   mockWalletOptions.platforms.web.coinify.config.iSignThisDomain
@@ -20,9 +26,12 @@ let sslEnabled = process.env.DISABLE_SSL
   ? false
   : fs.existsSync(PATHS.sslConfig + '/key.pem') &&
     fs.existsSync(PATHS.sslConfig + '/cert.pem')
+
+const port = 8082
+
 let localhostUrl = sslEnabled
-  ? 'https://localhost:8080'
-  : 'http://localhost:8080'
+  ? `https://localhost:${port}`
+  : `http://localhost:${port}`
 
 try {
   envConfig = require(PATHS.envConfig + `/${process.env.NODE_ENV}` + '.js')
@@ -51,6 +60,28 @@ try {
   console.log(chalk.cyan('SSL Enabled: ') + chalk.blue(sslEnabled))
 }
 
+const unusedFilesOptions = {
+  globOptions: {
+    ignore: [`build/**/*`, `node_modules/**/*`, `**/*.spec.js`]
+  },
+  patterns: [`**/*.js`]
+}
+
+const plugins = [
+  new CleanWebpackPlugin(),
+  new CaseSensitivePathsPlugin(),
+  new Webpack.DefinePlugin({
+    APP_VERSION: JSON.stringify(require(PATHS.pkgJson).version),
+    NETWORK_TYPE: JSON.stringify(envConfig.NETWORK_TYPE)
+  }),
+  new HtmlWebpackPlugin({
+    template: PATHS.src + '/index.html',
+    filename: 'index.html'
+  }),
+  new UnusedFilesWebpackPlugin(unusedFilesOptions),
+  new Webpack.HotModuleReplacementPlugin()
+]
+
 module.exports = {
   mode: 'development',
   node: {
@@ -60,7 +91,7 @@ module.exports = {
     app: [
       '@babel/polyfill',
       'react-hot-loader/patch',
-      'webpack-dev-server/client?http://localhost:8080',
+      `webpack-dev-server/client?${localhostUrl}`,
       'webpack/hot/only-dev-server',
       PATHS.src + '/index.js'
     ]
@@ -114,19 +145,7 @@ module.exports = {
       }
     ]
   },
-  plugins: [
-    new CleanWebpackPlugin(),
-    new CaseSensitivePathsPlugin(),
-    new Webpack.DefinePlugin({
-      APP_VERSION: JSON.stringify(require(PATHS.pkgJson).version),
-      NETWORK_TYPE: JSON.stringify(envConfig.NETWORK_TYPE)
-    }),
-    new HtmlWebpackPlugin({
-      template: PATHS.src + '/index.html',
-      filename: 'index.html'
-    }),
-    new Webpack.HotModuleReplacementPlugin()
-  ],
+  plugins,
   optimization: {
     namedModules: true,
     minimizer: [
@@ -190,7 +209,7 @@ module.exports = {
     key: sslEnabled
       ? fs.readFileSync(PATHS.sslConfig + '/key.pem', 'utf8')
       : '',
-    port: 8080,
+    port,
     hot: true,
     historyApiFallback: true,
     before(app) {
@@ -243,29 +262,32 @@ module.exports = {
         pathRewrite: { '^/ledger': '' }
       }
     },
-    overlay: {
-      warnings: true,
-      errors: true
-    },
+    // This doesn't work within a sandboxed iframe.  If it's important to us
+    // then we can improve webpack-dev-server so that it does.
+    //
+    // overlay: {
+    //   warnings: true,
+    //   errors: true
+    // },
     headers: {
       'Access-Control-Allow-Origin': '*',
       'Content-Security-Policy': [
-        "img-src 'self' data: blob:",
-        "script-src 'self' 'unsafe-eval'",
-        "style-src 'self' 'unsafe-inline'",
+        `img-src ${localhostUrl} data: blob:`,
+        `script-src ${localhostUrl} 'unsafe-eval'`,
+        `style-src ${localhostUrl} 'unsafe-inline'`,
         `frame-src ${iSignThisDomain} ${coinifyPaymentDomain} ${
           envConfig.WALLET_HELPER_DOMAIN
-        } ${envConfig.ROOT_URL} https://magic.veriff.me https://localhost:8080`,
+        } ${envConfig.ROOT_URL} https://magic.veriff.me ${localhostUrl}`,
         `child-src ${iSignThisDomain} ${coinifyPaymentDomain}  ${
           envConfig.WALLET_HELPER_DOMAIN
         } blob:`,
         [
-          'connect-src',
-          "'self'",
-          'ws://localhost:8080',
-          'wss://localhost:8080',
-          'wss://api.ledgerwallet.com',
-          'wss://ws.testnet.blockchain.info/inv',
+          `connect-src`,
+          localhostUrl,
+          `ws://localhost:${port}`,
+          `wss://localhost:${port}`,
+          `wss://api.ledgerwallet.com`,
+          `wss://ws.testnet.blockchain.info/inv`,
           envConfig.WEB_SOCKET_URL,
           envConfig.ROOT_URL,
           envConfig.API_DOMAIN,
@@ -274,22 +296,22 @@ module.exports = {
           envConfig.LEDGER_SOCKET_URL,
           envConfig.HORIZON_URL,
           envConfig.VERIFF_URL,
-          'https://friendbot.stellar.org',
-          'https://app-api.coinify.com',
-          'https://app-api.sandbox.coinify.com',
-          'https://api.sfox.com',
-          'https://api.staging.sfox.com',
-          'https://quotes.sfox.com',
+          `https://friendbot.stellar.org`,
+          `https://app-api.coinify.com`,
+          `https://app-api.sandbox.coinify.com`,
+          `https://api.sfox.com`,
+          `https://api.staging.sfox.com`,
+          `https://quotes.sfox.com`,
           `https://quotes.staging.sfox.com`,
-          'https://sfox-kyc.s3.amazonaws.com',
-          'https://sfox-kyctest.s3.amazonaws.com',
-          'https://testnet5.blockchain.info',
-          'https://api.testnet.blockchain.info',
-          'https://shapeshift.io'
-        ].join(' '),
-        "object-src 'none'",
-        "media-src 'self' https://storage.googleapis.com/bc_public_assets/ data: mediastream: blob:",
-        "font-src 'self'"
+          `https://sfox-kyc.s3.amazonaws.com`,
+          `https://sfox-kyctest.s3.amazonaws.com`,
+          `https://testnet5.blockchain.info`,
+          `https://api.testnet.blockchain.info`,
+          `https://shapeshift.io`
+        ].join(` `),
+        `object-src 'none'`,
+        `media-src ${localhostUrl} https://storage.googleapis.com/bc_public_assets/ data: mediastream: blob:`,
+        `font-src ${localhostUrl}`
       ].join('; ')
     }
   }

@@ -2,13 +2,13 @@ import { compose, is, equals, not, pipe, curry, isNil } from 'ramda'
 import { view, set, traverseOf } from 'ramda-lens'
 import Base58 from 'bs58'
 import { ECPair } from 'bitcoinjs-lib'
-import * as crypto from '../walletCrypto'
 import { parseBIP38toECPair } from '../walletCrypto/importExport'
 import Either from 'data.either'
 import Task from 'data.task'
 import Type from './Type'
 import { iToJS } from './util'
 import * as utils from '../utils'
+import { promiseToTask, returnTask } from '../utils/functional'
 
 const eitherToTask = e => e.fold(Task.rejected, Task.of)
 const wrapPromiseInTask = fP =>
@@ -85,17 +85,28 @@ export const setArchived = curry((archived, address) =>
   set(tag, archived ? 2 : 0, address)
 )
 
-// encrypt :: Number -> String -> String -> Address -> Task Error Address
-export const encrypt = curry((iterations, sharedKey, password, address) => {
-  const cipher = crypto.encryptSecPass(sharedKey, iterations, password)
-  return traverseOf(priv, Task.of, cipher, address)
-})
+export const encrypt = curry(
+  (iterations, securityModule, password, address) => {
+    const cipher = returnTask(
+      curry(securityModule.encryptWithSecondPassword)({
+        iterations,
+        password
+      })
+    )
 
-// decrypt :: Number -> String -> String -> Address -> Task Error Address
-export const decrypt = curry((iterations, sharedKey, password, address) => {
-  const cipher = crypto.decryptSecPass(sharedKey, iterations, password)
-  return traverseOf(priv, Task.of, cipher, address)
-})
+    return traverseOf(priv, Task.of, cipher, address)
+  }
+)
+
+export const decrypt = curry(
+  (iterations, securityModule, password, address) => {
+    const decipher = returnTask(
+      curry(securityModule.decryptWithSecondPassword)({ iterations, password })
+    )
+
+    return traverseOf(priv, Task.of, decipher, address)
+  }
+)
 
 // importAddress :: String|ECPair -> String? -> Number -> Network -> Address
 export const importAddress = (key, createdTime, label, network) => {

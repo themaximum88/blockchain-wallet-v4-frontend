@@ -9,13 +9,12 @@ import * as pairing from '../../pairing'
 const taskToPromise = t =>
   new Promise((resolve, reject) => t.fork(reject, resolve))
 
-export default ({ api }) => {
+export default ({ api, securityModule }) => {
   const fetchSettings = function * () {
     try {
       const guid = yield select(selectors.wallet.getGuid)
-      const sharedKey = yield select(selectors.wallet.getSharedKey)
       yield put(actions.fetchSettingsLoading())
-      const data = yield call(api.getSettings, guid, sharedKey)
+      const data = yield call(securityModule.getSettings, guid)
       yield put(actions.fetchSettingsSuccess(data))
     } catch (e) {
       yield put(actions.fetchSettingsFailure(e.message))
@@ -35,12 +34,7 @@ export default ({ api }) => {
 
   const requestGoogleAuthenticatorSecretUrl = function * () {
     const guid = yield select(wS.getGuid)
-    const sharedKey = yield select(wS.getSharedKey)
-    const response = yield call(
-      api.getGoogleAuthenticatorSecretUrl,
-      guid,
-      sharedKey
-    )
+    const response = yield call(api.getGoogleAuthenticatorSecretUrl, guid)
     if (!contains('secret', response)) {
       throw new Error(response)
     }
@@ -50,8 +44,7 @@ export default ({ api }) => {
 
   const setEmail = function * ({ email }) {
     const guid = yield select(wS.getGuid)
-    const sharedKey = yield select(wS.getSharedKey)
-    const response = yield call(api.updateEmail, guid, sharedKey, email)
+    const response = yield call(api.updateEmail, guid, email)
     if (!contains('updated', toLower(response))) {
       throw new Error(response)
     }
@@ -60,13 +53,7 @@ export default ({ api }) => {
 
   const sendConfirmationCodeEmail = function * ({ email }) {
     const guid = yield select(wS.getGuid)
-    const sharedKey = yield select(wS.getSharedKey)
-    const response = yield call(
-      api.sendConfirmationCodeEmail,
-      guid,
-      sharedKey,
-      email
-    )
+    const response = yield call(api.sendConfirmationCodeEmail, guid, email)
     if (!response.success) {
       throw new Error(response)
     }
@@ -75,8 +62,7 @@ export default ({ api }) => {
 
   const verifyEmailCode = function * ({ code }) {
     const guid = yield select(wS.getGuid)
-    const sharedKey = yield select(wS.getSharedKey)
-    const response = yield call(api.verifyEmail, guid, sharedKey, code)
+    const response = yield call(api.verifyEmail, guid, code)
     if (!response.success) {
       yield put(actions.setEmailVerifiedFailedStatus(true))
       throw new Error(response)
@@ -86,36 +72,32 @@ export default ({ api }) => {
 
   const resendVerifyEmail = function * ({ email }) {
     const guid = yield select(wS.getGuid)
-    const sharedKey = yield select(wS.getSharedKey)
-    const response = yield call(api.resendVerifyEmail, guid, sharedKey, email)
+    const response = yield call(api.resendVerifyEmail, guid, email)
     if (!prop('success', response)) throw new Error(JSON.stringify(response))
   }
 
   const setMobile = function * ({ mobile }) {
     const guid = yield select(wS.getGuid)
-    const sharedKey = yield select(wS.getSharedKey)
-    const response = yield call(api.updateMobile, guid, sharedKey, mobile)
+    const response = yield call(api.updateMobile, guid, mobile)
     yield put(actions.setMobile(mobile))
     return response
   }
 
   const setMobileVerified = function * ({ code }) {
     const guid = yield select(wS.getGuid)
-    const sharedKey = yield select(wS.getSharedKey)
-    const response = yield call(api.verifyMobile, guid, sharedKey, code)
+    const response = yield call(api.verifyMobile, guid, code)
     yield put(actions.setMobileVerified())
     return response
   }
 
   const setMobileVerifiedAs2FA = function * ({ code }) {
     const guid = yield select(wS.getGuid)
-    const sharedKey = yield select(wS.getSharedKey)
-    const response = yield call(api.verifyMobile, guid, sharedKey, code)
+    const response = yield call(api.verifyMobile, guid, code)
     if (!contains('successfully', toLower(response))) {
       throw new Error(response)
     }
     yield put(actions.setMobileVerified())
-    const updateAuthCall = yield call(api.updateAuthType, guid, sharedKey, '5')
+    const updateAuthCall = yield call(api.updateAuthType, guid, '5')
     if (!contains('updated', updateAuthCall)) {
       throw new Error(updateAuthCall)
     }
@@ -124,8 +106,7 @@ export default ({ api }) => {
 
   const setLanguage = function * ({ language }) {
     const guid = yield select(wS.getGuid)
-    const sharedKey = yield select(wS.getSharedKey)
-    const response = yield call(api.updateLanguage, guid, sharedKey, language)
+    const response = yield call(api.updateLanguage, guid, language)
     if (!contains('successfully', toLower(response))) {
       throw new Error(response)
     }
@@ -134,11 +115,10 @@ export default ({ api }) => {
 
   const setLastTxTime = function * () {
     const guid = yield select(wS.getGuid)
-    const sharedKey = yield select(wS.getSharedKey)
     let d = new Date()
     let epoch = d.setHours(0, 0, 0, 0)
     try {
-      yield call(api.updateLastTxTime, guid, sharedKey, epoch)
+      yield call(api.updateLastTxTime, guid, epoch)
     } catch (e) {
       console.warn('Error: setLastTxTime')
     }
@@ -146,8 +126,7 @@ export default ({ api }) => {
 
   const setCurrency = function * ({ currency }) {
     const guid = yield select(wS.getGuid)
-    const sharedKey = yield select(wS.getSharedKey)
-    const response = yield call(api.updateCurrency, guid, sharedKey, currency)
+    const response = yield call(api.updateCurrency, guid, currency)
     if (!contains('successfully', toLower(response))) {
       throw new Error(response)
     }
@@ -160,11 +139,9 @@ export default ({ api }) => {
 
   const setLoggingLevel = function * ({ loggingLevel }) {
     const guid = yield select(wS.getGuid)
-    const sharedKey = yield select(wS.getSharedKey)
     const response = yield call(
       api.updateLoggingLevel,
       guid,
-      sharedKey,
       String(loggingLevel)
     )
     if (!contains('Logging level updated.', response)) {
@@ -175,13 +152,7 @@ export default ({ api }) => {
 
   const setIpLock = function * ({ ipLock }) {
     const guid = yield select(wS.getGuid)
-    const sharedKey = yield select(wS.getSharedKey)
-    const response = yield call(
-      api.updateIpLock,
-      guid,
-      sharedKey,
-      String(ipLock || '')
-    )
+    const response = yield call(api.updateIpLock, guid, String(ipLock || ''))
     if (!contains('Ip Addresses Updated', response)) {
       throw new Error(response)
     }
@@ -190,11 +161,9 @@ export default ({ api }) => {
 
   const setIpLockOn = function * ({ ipLockOn }) {
     const guid = yield select(wS.getGuid)
-    const sharedKey = yield select(wS.getSharedKey)
     const response = yield call(
       api.updateIpLockOn,
       guid,
-      sharedKey,
       String(Boolean(ipLockOn))
     )
     if (!contains('Updated IP Lock Settings', response)) {
@@ -205,11 +174,9 @@ export default ({ api }) => {
 
   const setBlockTorIps = function * ({ blockTorIps }) {
     const guid = yield select(wS.getGuid)
-    const sharedKey = yield select(wS.getSharedKey)
     const response = yield call(
       api.updateBlockTorIps,
       guid,
-      sharedKey,
       String(blockTorIps)
     )
     if (!contains('Tor IP address settings updated.', response)) {
@@ -220,8 +187,7 @@ export default ({ api }) => {
 
   const setHint = function * ({ hint }) {
     const guid = yield select(wS.getGuid)
-    const sharedKey = yield select(wS.getSharedKey)
-    const response = yield call(api.updateHint, guid, sharedKey, hint)
+    const response = yield call(api.updateHint, guid, hint)
     if (!contains('Updated Password Hint', response)) {
       throw new Error(response)
     }
@@ -230,8 +196,7 @@ export default ({ api }) => {
 
   const setAuthType = function * ({ authType }) {
     const guid = yield select(wS.getGuid)
-    const sharedKey = yield select(wS.getSharedKey)
-    const response = yield call(api.updateAuthType, guid, sharedKey, authType)
+    const response = yield call(api.updateAuthType, guid, authType)
     if (!contains('updated', response)) {
       throw new Error(response)
     }
@@ -240,11 +205,9 @@ export default ({ api }) => {
 
   const setAuthTypeNeverSave = function * ({ authTypeNeverSave }) {
     const guid = yield select(wS.getGuid)
-    const sharedKey = yield select(wS.getSharedKey)
     const response = yield call(
       api.updateAuthTypeNeverSave,
       guid,
-      sharedKey,
       String(Boolean(authTypeNeverSave))
     )
     if (!contains('Success', response)) {
@@ -255,13 +218,7 @@ export default ({ api }) => {
 
   const setGoogleAuthenticator = function * ({ code }) {
     const guid = yield select(wS.getGuid)
-    const sharedKey = yield select(wS.getSharedKey)
-    const response = yield call(
-      api.enableGoogleAuthenticator,
-      guid,
-      sharedKey,
-      code
-    )
+    const response = yield call(api.enableGoogleAuthenticator, guid, code)
     if (!contains('updated', response)) {
       throw new Error(response)
     }
@@ -270,9 +227,8 @@ export default ({ api }) => {
 
   const setYubikey = function * ({ code }) {
     const guid = yield select(wS.getGuid)
-    const sharedKey = yield select(wS.getSharedKey)
-    const response = yield call(api.enableYubikey, guid, sharedKey, code)
-    yield call(api.updateAuthType, guid, sharedKey, '1')
+    const response = yield call(api.enableYubikey, guid, code)
+    yield call(api.updateAuthType, guid, '1')
     if (!contains('updated', response)) {
       throw new Error(response)
     }
@@ -282,8 +238,7 @@ export default ({ api }) => {
   const setNotificationsOn = function * ({ enabled }) {
     const value = enabled ? 2 : 0
     const guid = yield select(wS.getGuid)
-    const sharedKey = yield select(wS.getSharedKey)
-    const response = yield call(api.enableNotifications, guid, sharedKey, value)
+    const response = yield call(api.enableNotifications, guid, value)
     if (!contains('updated', response)) {
       throw new Error(response)
     }
@@ -301,12 +256,10 @@ export default ({ api }) => {
       typesState.push(32)
     }
     const guid = yield select(wS.getGuid)
-    const sharedKey = yield select(wS.getSharedKey)
     const notificationsType = sum(typesState)
     const response = yield call(
       api.updateNotificationsType,
       guid,
-      sharedKey,
       notificationsType
     )
     if (!contains('updated', response)) {

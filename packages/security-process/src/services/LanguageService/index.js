@@ -50,11 +50,12 @@ function convertCultureCodeToLanguage (cultureCode) {
 
 // update url with new language without forcing browser reload
 function addLanguageToUrl (language) {
-  window.history.pushState({}, '', `/${language}/${window.location.hash}`)
+  // window.history.pushState({}, '', `/${language}/${window.location.hash}`)
+  // NOP for now; this will be culled later.
 }
 
-function tryParseLanguageFromUrl () {
-  const path = window.location.pathname.replace(/\//g, '')
+function tryParseLanguageFromUrl ({ pathname }) {
+  const path = pathname.replace(/\//g, '')
 
   if (path && path.length) {
     return languages[findIndex(propEq('language', path))(languages)]

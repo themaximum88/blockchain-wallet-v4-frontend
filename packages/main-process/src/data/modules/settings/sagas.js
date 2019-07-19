@@ -19,7 +19,7 @@ export const ipRestrictionError =
 
 export const logLocation = 'modules/settings/sagas'
 
-export default ({ api, coreSagas }) => {
+export default ({ api, coreSagas, imports }) => {
   const { syncUserWithWallet } = profileSagas({
     api,
     coreSagas
@@ -46,7 +46,8 @@ export default ({ api, coreSagas }) => {
   }
 
   const recoverySaga = function * ({ password }) {
-    const getMnemonic = s => selectors.core.wallet.getMnemonic(s, password)
+    const getMnemonic = s =>
+      selectors.core.wallet.getMnemonic(imports.securityModule, s, password)
     try {
       const mnemonicT = yield select(getMnemonic)
       const mnemonic = yield call(() => taskToPromise(mnemonicT))
@@ -142,7 +143,7 @@ export default ({ api, coreSagas }) => {
   const updateLanguage = function * (action) {
     try {
       yield call(coreSagas.settings.setLanguage, action.payload)
-      addLanguageToUrl(action.payload.language)
+      imports.addLanguageToUrl(action.payload.language)
     } catch (e) {
       yield put(actions.logs.logErrorMessage(logLocation, 'updateLanguage', e))
     }
@@ -335,7 +336,11 @@ export default ({ api, coreSagas }) => {
         yield put(actions.modules.settings.addShownEthPrivateKey(legPriv))
       } else {
         const getMnemonic = state =>
-          selectors.core.wallet.getMnemonic(state, password)
+          selectors.core.wallet.getMnemonic(
+            imports.securityModule,
+            state,
+            password
+          )
         const mnemonicT = yield select(getMnemonic)
         const mnemonic = yield call(() => taskToPromise(mnemonicT))
         let priv = utils.eth.getPrivateKey(mnemonic, 0).toString('hex')
@@ -352,7 +357,11 @@ export default ({ api, coreSagas }) => {
     try {
       const password = yield call(promptForSecondPassword)
       const getMnemonic = state =>
-        selectors.core.wallet.getMnemonic(state, password)
+        selectors.core.wallet.getMnemonic(
+          imports.securityModule,
+          state,
+          password
+        )
       const mnemonicT = yield select(getMnemonic)
       const mnemonic = yield call(() => taskToPromise(mnemonicT))
       const keyPair = utils.xlm.getKeyPair(mnemonic)

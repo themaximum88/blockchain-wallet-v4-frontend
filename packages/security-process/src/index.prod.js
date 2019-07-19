@@ -1,7 +1,6 @@
 import React from 'react'
 import ReactDOM from 'react-dom'
 
-import './favicons'
 import configureStore from 'store'
 import configureLocales from 'services/LocalesService'
 import App from 'scenes/app.js'

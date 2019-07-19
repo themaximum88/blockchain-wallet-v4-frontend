@@ -1,0 +1,35 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Public Header Component should match snapshot 1`] = `
+<Fragment>
+  <Header__White>
+    <Navbar
+      fluid={false}
+      height="90px"
+    >
+      <NavbarBrand>
+        <Component
+          href="https://www.blockchain.com"
+        >
+          <Component
+            height="20px"
+            name="blockchain-vector"
+          />
+        </Component>
+      </NavbarBrand>
+      <Header__Dashboard>
+        <Link
+          replace={false}
+          to="/home"
+        >
+          <FormattedMessage
+            defaultMessage="Dashboard"
+            id="layouts.wallet.menuleft.navigation.dashboard"
+            values={Object {}}
+          />
+        </Link>
+      </Header__Dashboard>
+    </Navbar>
+  </Header__White>
+</Fragment>
+`;

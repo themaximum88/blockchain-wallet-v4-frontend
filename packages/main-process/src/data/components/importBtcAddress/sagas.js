@@ -7,7 +7,7 @@ import { promptForSecondPassword, promptForInput } from 'services/SagaService'
 import { utils } from 'blockchain-wallet-v4/src'
 
 const { IMPORT_ADDR } = model.analytics.ADDRESS_EVENTS
-export default ({ api, coreSagas, networks }) => {
+export default ({ api, coreSagas, imports: { securityModule }, networks }) => {
   const logLocation = 'components/importBtcAddress/sagas'
 
   const importBtcAddressSubmitClicked = function * () {
@@ -31,14 +31,30 @@ export default ({ api, coreSagas, networks }) => {
           )
         )
       }
-      yield call(importLegacyAddress, address, value, null, null, to)
+      yield call(
+        importLegacyAddress,
+        securityModule,
+        address,
+        value,
+        null,
+        null,
+        to
+      )
       yield put(actions.analytics.logEvent(IMPORT_ADDR))
       return
     }
 
     // address handling (watch-only)
     if (value && utils.btc.isValidBtcAddress(value, networks.btc)) {
-      yield call(importLegacyAddress, value, null, null, null, null)
+      yield call(
+        importLegacyAddress,
+        securityModule,
+        value,
+        null,
+        null,
+        null,
+        null
+      )
       yield put(actions.analytics.logEvent(IMPORT_ADDR))
     }
   }
@@ -79,7 +95,14 @@ export default ({ api, coreSagas, networks }) => {
     }
   }
 
-  const importLegacyAddress = function * (address, priv, secPass, bipPass, to) {
+  const importLegacyAddress = function * (
+    securityModule,
+    address,
+    priv,
+    secPass,
+    bipPass,
+    to
+  ) {
     // TODO :: check if address and priv are corresponding each other
     // (how do we respond to weird pairs of compressed/uncompressed)
     let password
@@ -95,7 +118,8 @@ export default ({ api, coreSagas, networks }) => {
       yield call(coreSagas.wallet.importLegacyAddress, {
         key,
         password,
-        bipPass
+        bipPass,
+        securityModule
       })
       yield put(actions.alerts.displaySuccess(C.IMPORT_LEGACY_SUCCESS))
       yield sweepImportedToAccount(priv, to, password)
